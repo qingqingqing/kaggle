@@ -1,0 +1,258 @@
+import csv
+import numpy
+import sklearn
+import nltk
+import re
+import scipy.sparse as sp
+from time import time
+from sklearn import cross_validation
+from sklearn import preprocessing
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.feature_extraction.text import HashingVectorizer
+from sklearn.naive_bayes import MultinomialNB, BernoulliNB
+from nltk.corpus import stopwords
+from nltk.corpus import movie_reviews
+ 
+
+
+
+path_1 = 'C:/Users/qing/Desktop/train.tsv'
+path_2 = 'C:/Users/qing/Desktop/test.tsv'
+ 
+
+ 
+
+def readfile(path):
+
+    with open(path, 'rb') as infile:
+        reader = csv.reader(infile, delimiter='\t')
+        header = reader.next()
+        
+        y = []
+        sent = []
+        idx = []
+        for line in reader:
+            PhraseId, SentenceId, Phrase, Sentiment = line
+            if SentenceId not in idx:
+                idx.append(SentenceId)
+                sent.append(Phrase)
+                y.append(Sentiment)
+    return sent, y
+
+
+ 
+sent, y = readfile(path_1) 
+
+
+ 
+
+
+
+ 
+
+
+vectorizer = sklearn.feature_extraction.text.TfidfVectorizer(sublinear_tf = True, lowercase = True, tokenizer = None,  ngram_range = (1,2),analyzer = 'word', stop_words = None, max_features = None, binary = False, use_idf=True, smooth_idf = True)
+vectorizer
+ 
+
+ 
+
+
+
+
+
+
+t0 = time()
+x = vectorizer.fit_transform(sent)
+c = vectorizer.get_feature_names()
+print len(c)
+print("n_samples: %d, n_features: %d" % x.shape)
+assert sp.issparse(x)
+print("done in %fs" % (time() - t0))
+
+
+'''
+## NB
+
+
+def bernoulli_naive_bayes(x_train, y_train, x_cv, y_cv):
+
+    print 'Training with Bernoulli_NB'
+    clf = BernoulliNB()
+    clf.fit(x_train, y_train)
+
+    print 'Accuracy in training set: %f' %clf.score(x_train, y_train)
+    print 'Accuracy in cv test: %f'%clf.score(x_cv, y_cv)
+    return clf
+
+
+
+def Multinomial_naive_bayes(x_train, y_train, x_cv, y_cv):
+
+    print 'Training with Multinomial_NB'
+    clf = MultinomialNB()
+    clf.fit(x_train, y_train)
+
+    print 'Accuracy in training set: %f' %clf.score(x_train, y_train)
+    print 'Accuracy in cv test: %f'%clf.score(x_cv, y_cv)
+    return clf'''
+
+
+
+def preparedata(x, y, size):
+
+    x_train, x_cvtest, y_train, y_cvtest = cross_validation.train_test_split(x,y,test_size = size, random_state = 0)
+    return x_train, x_cvtest, y_train, y_cvtest
+    
+
+x_train, x_cvtest, y_train, y_cvtest = preparedata(x,y,0.3)
+
+
+
+
+'''clf1 = bernoulli_naive_bayes(x_train, y_train, x_cvtest, y_cvtest)
+clf2 = Multinomial_naive_bayes(x_train, y_train, x_cvtest, y_cvtest)
+
+
+''' 
+ 
+
+'''
+with max_features = 10000, tokens and bigrams, max_df = 0.8
+
+done in 1.288000s
+Training with Bernoulli_NB
+Accuracy in training set: 0.773367
+Accuracy in cv test: 0.373974
+Training with Multinomial_NB
+Accuracy in training set: 0.635678
+Accuracy in cv test: 0.387261
+>>> '''
+
+
+
+
+'''
+with max_features = None, tokens and bigrams, max_df = 0.8
+
+done in 1.491000s
+Training with Bernoulli_NB
+Accuracy in training set: 0.562479
+Accuracy in cv test: 0.350137
+Training with Multinomial_NB
+Accuracy in training set: 0.709045
+Accuracy in cv test: 0.373583
+'''
+
+
+
+'''
+94244 features
+with max_features = None, tokens and bigrams 
+
+done in 1.358000s
+Training with Bernoulli_NB
+Accuracy in training set: 0.562479
+Accuracy in cv test: 0.350137
+Training with Multinomial_NB
+Accuracy in training set: 0.709045
+Accuracy in cv test: 0.373583
+'''
+
+
+
+
+
+
+
+
+## prediction
+
+
+def readfile_tst(path):
+
+    with open(path, 'rb') as infile:
+        reader = csv.reader(infile, delimiter='\t')
+        header = reader.next()
+        
+        sent_tst = []
+        idx = []
+        for line in reader:
+            PhraseId, SentenceId, Phrase= line
+            if SentenceId not in idx:
+                idx.append(SentenceId)
+                sent_tst.append(Phrase)
+    return sent_tst
+
+sent_tst = readfile_tst(path_2) 
+
+
+
+
+t0 = time()
+xtst = vectorizer.transform(sent_tst)
+ctst = vectorizer.get_feature_names()
+print len(ctst)
+print("n_samples: %d, n_features: %d" % xtst.shape)
+assert sp.issparse(xtst)
+print("done in %fs" % (time() - t0))
+
+
+def predict_BNB(x_train, y_train, x_cv, y_cv, xtst):
+
+    print 'Training with Bernoulli_NB'
+    clf = BernoulliNB()
+    clf.fit(x_train, y_train)
+    pred = clf.predict(xtst)
+
+    print 'Accuracy in training set: %f' %clf.score(x_train, y_train)
+    print 'Accuracy in cv test: %f'%clf.score(x_cv, y_cv)
+    return pred
+
+
+
+
+def predict_MNB(x_train, y_train, x_cv, y_cv, xtst):
+
+    print 'Training with Multinomial_NB'
+    clf = MultinomialNB()
+    clf.fit(x_train, y_train)
+    pred = clf.predict(xtst)
+
+    print 'Accuracy in training set: %f' %clf.score(x_train, y_train)
+    print 'Accuracy in cv test: %f'%clf.score(x_cv, y_cv)
+    return pred
+
+
+pred1 = predict_BNB(x_train, y_train, x_cvtest, y_cvtest, xtst)
+pred2 = predict_MNB(x_train, y_train, x_cvtest, y_cvtest, xtst)
+
+print pred1[:5]
+print pred2[:5]
+
+'''
+94244
+n_samples: 8529, n_features: 94244
+done in 1.716000s
+94244
+n_samples: 3310, n_features: 94244
+done in 0.596000s
+Training with Bernoulli_NB
+Accuracy in training set: 0.562479
+Accuracy in cv test: 0.350137
+Training with Multinomial_NB
+Accuracy in training set: 0.713903
+Accuracy in cv test: 0.374756
+['3' '3' '3' '3' '3']
+['3' '3' '3' '1' '3']
+
+'''
+
+
+
+
+
+
+ 
+
+
