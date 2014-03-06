@@ -1,0 +1,24 @@
+from pytagcloud import create_tag_image, make_tags
+from pytagcloud.lang.counter import get_tag_counts
+import csv
+ 
+ 
+def tagclounddata(metadata, name):
+    TEXT = ','.join(metadata)
+        
+    tags = make_tags(get_tag_counts(TEXT), maxsize = 20)
+    return create_tag_image(tags, name, size = (600, 600), fontname = "Lobster")
+ 
+ 
+with open("**", "rb") as infile:
+    reader = csv.reader(infile)
+    header = reader.next()
+    x = []
+    for row in reader:
+        x.extend(row)
+ 
+ 
+ 
+x = x[:100]
+print x
+print tagclounddata(x, 'traindatacloud')
