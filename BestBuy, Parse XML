@@ -1,0 +1,63 @@
+import sys
+import csv
+from xml.dom import *
+import xml.dom.minidom
+
+
+defa_encd = sys.getdefaultencoding()
+
+dom = xml.dom.minidom.parse('C:\\Users\\qing\\Desktop\\bestbuy\\small_product_data.xml')
+sku = dom.getElementsByTagName('sku')
+prod_ID = dom.getElementsByTagName('productId')
+prod_name = dom.getElementsByTagName('name')
+prod = dom.getElementsByTagName('product')
+print len(sku)
+print len(prod_name)
+print len(prod)
+print len(prod_ID)
+## there are 874 diff products in xml. There are 4104 sku, and 6468 name
+## implemention using getElementsByTagName()
+
+
+
+
+sku = prod[0].getElementsByTagName("sku")
+print sku[0].toxml()
+## <sku>1004622</sku>
+
+
+## extract data from xml document
+## using list and append() to store the data
+## toxml() is used on nodes
+sku = []
+prod_name = []
+startDate = []
+updateDate = []
+
+for i in range(len(prod)):
+    sku.append((prod[i].getElementsByTagName("sku")[0]).childNodes[0].data)
+    prod_name.append((prod[i].getElementsByTagName("name")[0]).childNodes[0].data)
+    startDate.append((prod[i].getElementsByTagName("startDate")[0]).childNodes[0].data)
+    updateDate.append((prod[i].getElementsByTagName("activeUpdateDate")[0]).childNodes[0].data)
+
+for i in range(len(prod)):
+    sku[i] = sku[i].encode("UTF-8")
+    prod_name[i] = prod_name[i].encode("UTF-8")
+    startDate[i] = startDate[i].encode("UTF-8")
+    updateDate[i] = updateDate[i].encode("UTF-8")
+
+ 
+
+## export to a csv file
+## note writing the head, using writerow() and list []
+with open("C:\\Users\\qing\\Desktop\\bestbuy\\prod_info.csv", "wb") as fl:
+    writer = csv.writer(fl,delimiter = ',')
+    writer.writerow(["Sku","ProductName","StartDate","UpdateDate"])
+    writer.writerows(zip(sku, prod_name, startDate, updateDate))
+
+ 
+
+
+
+
+
