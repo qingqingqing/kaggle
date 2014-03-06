@@ -1,0 +1,231 @@
+import csv
+import numpy
+import sklearn
+import nltk
+import re
+import scipy.sparse as sp
+from time import time
+from sklearn import cross_validation
+from sklearn import preprocessing
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.feature_extraction.text import HashingVectorizer
+from sklearn.naive_bayes import MultinomialNB, BernoulliNB
+from nltk.corpus import stopwords
+from nltk.corpus import movie_reviews
+ 
+
+
+
+path_1 = 'C:/Users/qing/Desktop/train.tsv'
+path_2 = 'C:/Users/qing/Desktop/test.tsv'
+ 
+
+ 
+
+def readfile(path):
+
+    with open(path, 'rb') as infile:
+        reader = csv.reader(infile, delimiter='\t')
+        header = reader.next()
+        
+        y = []
+        phr = []
+        sentID = []
+        phrID = []
+        for line in reader:
+            PhraseId, SentenceId, Phrase, Sentiment = line
+            phrID.append(PhraseId)
+            sentID.append(SentenceId)
+            phr.append(Phrase)
+            y.append(Sentiment)
+    return phrID, sentID, phr, y
+
+
+ 
+phrID, sentID, phr, y = readfile(path_1) 
+
+
+ 
+
+
+
+ 
+
+
+vectorizer = sklearn.feature_extraction.text.TfidfVectorizer(sublinear_tf = True, lowercase = True, tokenizer = None,  ngram_range = (1,2),analyzer = 'word', stop_words = None, max_features = None, binary = False, use_idf=True, smooth_idf = True)
+vectorizer
+ 
+
+
+ 
+
+
+
+
+
+
+t0 = time()
+x = vectorizer.fit_transform(phr)
+c = vectorizer.get_feature_names()
+print len(c)
+print("n_samples: %d, n_features: %d" % x.shape)
+assert sp.issparse(x)
+print("done in %fs" % (time() - t0))
+
+
+'''
+## NB
+
+
+def bernoulli_naive_bayes(x_train, y_train, x_cv, y_cv):
+
+    print 'Training with Bernoulli_NB'
+    clf = BernoulliNB()
+    clf.fit(x_train, y_train)
+
+    print 'Accuracy in training set: %f' %clf.score(x_train, y_train)
+    print 'Accuracy in cv test: %f'%clf.score(x_cv, y_cv)
+    return clf
+
+
+
+def Multinomial_naive_bayes(x_train, y_train, x_cv, y_cv):
+
+    print 'Training with Multinomial_NB'
+    clf = MultinomialNB()
+    clf.fit(x_train, y_train)
+
+    print 'Accuracy in training set: %f' %clf.score(x_train, y_train)
+    print 'Accuracy in cv test: %f'%clf.score(x_cv, y_cv)
+    return clf'''
+
+
+
+def preparedata(x, y, size):
+
+    x_train, x_cvtest, y_train, y_cvtest = cross_validation.train_test_split(x,y,test_size = size, random_state = 0)
+    return x_train, x_cvtest, y_train, y_cvtest
+    
+
+x_train, x_cvtest, y_train, y_cvtest = preparedata(x,y,0.3)
+
+
+
+
+'''
+clf1 = bernoulli_naive_bayes(x_train, y_train, x_cvtest, y_cvtest)
+clf2 = Multinomial_naive_bayes(x_train, y_train, x_cvtest, y_cvtest)
+
+''' 
+ 
+
+ 
+
+
+
+
+
+
+
+## prediction
+
+
+def readfile_tst(path):
+
+    with open(path, 'rb') as infile:
+        reader = csv.reader(infile, delimiter='\t')
+        header = reader.next()
+        
+        phr_tst = []
+        sentID_tst = []
+        phrID_tst = []
+        for line in reader:
+            PhraseId, SentenceId, Phrase = line
+            phrID_tst.append(PhraseId)
+            sentID_tst.append(SentenceId)
+            phr_tst.append(Phrase)
+             
+    return phrID_tst, sentID_tst, phr_tst
+
+
+phrID__tst, sentID_tst, phr_tst = readfile_tst(path_2) 
+
+
+
+
+t0 = time()
+xtst = vectorizer.transform(phr_tst)
+ctst = vectorizer.get_feature_names()
+print len(ctst)
+print("n_samples: %d, n_features: %d" % xtst.shape)
+assert sp.issparse(xtst)
+print("done in %fs" % (time() - t0))
+
+
+def predict_BNB(x_train, y_train, x_cv, y_cv, xtst):
+
+    print 'Training with Bernoulli_NB'
+    clf = BernoulliNB()
+    clf.fit(x_train, y_train)
+    pred = clf.predict(xtst)
+
+    print 'Accuracy in training set: %f' %clf.score(x_train, y_train)
+    print 'Accuracy in cv test: %f'%clf.score(x_cv, y_cv)
+    return pred
+
+
+
+
+def predict_MNB(x_train, y_train, x_cv, y_cv, xtst):
+
+    print 'Training with Multinomial_NB'
+    clf = MultinomialNB()
+    clf.fit(x_train, y_train)
+    pred = clf.predict(xtst)
+
+    print 'Accuracy in training set: %f' %clf.score(x_train, y_train)
+    print 'Accuracy in cv test: %f'%clf.score(x_cv, y_cv)
+    return pred
+
+
+pred1 = predict_BNB(x_train, y_train, x_cvtest, y_cvtest, xtst)
+pred2 = predict_MNB(x_train, y_train, x_cvtest, y_cvtest, xtst)
+
+print pred1[:5]
+print pred2[:5]
+
+ 
+
+'''
+
+94644
+n_samples: 156060, n_features: 94644
+done in 7.536000s
+94644
+n_samples: 66292, n_features: 94644
+done in 2.988000s
+Training with Bernoulli_NB
+Accuracy in training set: 0.662968
+Accuracy in cv test: 0.600218
+Training with Multinomial_NB
+Accuracy in training set: 0.690815
+Accuracy in cv test: 0.609680
+['3' '3' '2' '2' '2']
+['3' '3' '2' '2' '2']
+
+'''
+
+
+
+
+'''
+nltk.metrics.association
+http://www.slideshare.net/gane_spm/measures-of-association
+http://stackoverflow.com/questions/10526579/use-scikit-learn-to-classify-into-multiple-categories
+http://www.slideshare.net/jimmy_lai/text-classification-in-scikit-learn
+'''
+
+
+    
+
+
