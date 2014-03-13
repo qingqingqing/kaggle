@@ -1,0 +1,266 @@
+import numpy as np
+import csv
+import time
+import re
+import pylab as pl
+from nltk import FreqDist
+import math
+from math import sqrt
+import sklearn
+from sklearn.linear_model import Ridge
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.cross_validation import train_test_split
+
+ 
+
+
+
+
+## read values
+def readtarget(path, cols):
+    ## read a csv, return designated columns as array of data
+    
+    infile = open(path, "rb")
+    reader = csv.reader(infile, delimiter = ",")
+    header = reader.next()
+    y = []
+    for row in reader:
+        y.append([row[col] for col in cols])
+    return y
+
+
+
+
+
+
+
+## process texting
+        
+from nltk.corpus import stopwords
+stopwords = stopwords.words("english") + ['rt', 'link']
+
+def processtext(text):
+        ## process a string of texting
+        text = text.lower()
+        text_tokens = text.split()
+        text_tokens = [t for t in text_tokens if t not in stopwords]
+     
+        
+        mood_signs = {':)': 'happy', ':/': 'unhappy', ':(':'unhappy'}
+        a = text_tokens
+        for i in range(len(text_tokens)):
+             if text_tokens[i] in mood_signs.keys():
+                  a[i] = mood_signs[text_tokens[i]]
+      
+
+        b = []
+        for i in range(len(a)):
+            b.extend(re.findall(r'[a-zA-Z]+',a[i]))
+
+        return " ".join(b)
+
+ 
+
+
+
+## split trn data and evaluation function
+def splitTrn(x, y, perc):
+
+    xtrn, x_cv, ytrn, ycv = sklearn.cross_validation.train_test_split(x, y, test_size = perc)
+    return xtrn, x_cv, ytrn, ycv
+
+
+
+      
+def kclf_pred(c, j):
+    
+    clf = sklearn.linear_model.Ridge(alpha = c)
+    clf.fit(xtrn, kytrn[0::,j])
+    pred_K = clf.predict(x_cv)  
+    return pred_K
+
+ 
+
+
+
+ 
+def mseFunc(y, pred):
+     
+    score = math.sqrt(np.sum(np.power((y - pred), 2))/y.shape[0]) 
+    return score
+
+
+ 
+
+## import x and feature extraction
+Path = "C:\\Users\\qing\\Desktop\\tweet\\automatictag.csv"
+x = readtarget(Path, [1])
+for j in range(len(x)):
+    x[j]=  ''.join(x[j])
+xx = []
+for i in range(len(x)):
+    xx.append(processtext(x[i]))
+
+   
+
+## read K_y, prediction of K_y
+ 
+Y = readtarget(Path, range(4,28))
+print len(Y)
+ 
+ 
+
+xtrn, x_cv, ytrn, ycv = splitTrn(xx, Y, 0.3)
+sytrn = ytrn[0::,0:5]
+sycv = ycv[0::,0:5]
+wytrn = ytrn[0::,5:9]
+wycv = ycv[0::,5:9]
+kytrn = ytrn[0::,9:24]
+kycv= ycv[0::,9:24]
+nk = 15
+ns = 5
+nw = 4
+ 
+ 
+
+t0 = time.time()       
+vectorizer = TfidfVectorizer(sublinear_tf=True)
+xtrn = vectorizer.fit_transform(xtrn)
+x_cv = vectorizer.transform(x_cv)
+print time.time() -t0
+
+ 
+pred_K = np.zeros(shape=(len(ytrn), nk))
+for j in range(nk):
+    pred_K[0::,j] = Ridge(alpha = 2.00).fit(xtrn, kytrn[0::,j]).predict(xtrn)
+ 
+ 
+
+
+
+ 
+ 
+pred_S = np.zeros(shape=(len(ytrn), ns))
+for j in range(ns):
+     pred_S[0::,j] = Ridge(alpha = 0.05).fit(xtrn, sytrn[0::,j]).predict(xtrn)
+ 
+
+
+
+pred_W = np.zeros(shape=(len(ytrn), nw))
+for j in range(nw):
+     pred_S[0::,j] = Ridge(alpha = 0.05).fit(xtrn, wytrn[0::,j]).predict(xtrn)
+
+    
+
+newxtrn = np.hstack((pred_S, pred_W, pred_K))
+model_stacker = RandomForestClassifier(n_estimators = 20)
+new2y = model_stacker.fit(newxtrn, ytrn).predict(newxtrn)
+ 
+print len(new2y)
+
+
+
+snew2y = new2y[0::,0:5]
+wnew2y = new2y[0::,5:9]
+knew2y = new2y[0::,9:24]
+
+
+kclf = []
+wclf = []
+sclf = [] 
+for j in range(nk):
+    kclf.append(Ridge(alpha = 2.00).fit(xtrn, knew2y[0::,j]))
+for j in range(ns):
+     sclf.append(Ridge(alpha = 0.05).fit(xtrn, snew2y[0::,j]))
+for j in range(nw):
+     wclf.append(Ridge(alpha = 0.05).fit(xtrn, wnew2y[0::,j]))
+
+ 
+
+
+
+## import test test and feature extraction of testing x
+with open("C:/Users/qing/Desktop/tweet/test.csv", 'rb') as tstfile:
+    tstreader = csv.reader(tstfile)
+    headline = tstreader.next()
+    tstx = []
+    for row in tstreader:
+        tstx.extend(row)
+xxtst = []
+for i in range(len(tstx)):
+    xxtst.append(processtext(tstx[i]))    
+xtst = vectorizer.transform(xxtst)
+ 
+
+# 1st layer
+mtst = len(tstx)
+tstpred_K = np.zeros(shape = (mtst, nk))
+for j in range(nk):
+    tstpred_K[0::,j] = Ridge(alpha = 2.00).fit(xtrn, kytrn[0::,j]).predict(xtst)
+
+pred_S = np.zeros(shape = (mtst, ns))
+for j in range(ns):
+     pred_S[0::,j] = Ridge(alpha = 0.05).fit(xtrn, sytrn[0::,j]).predict(xtst)
+ 
+
+
+
+pred_W = np.zeros(shape = (mtst, nw))
+for j in range(nw):
+     pred_S[0::,j] = Ridge(alpha = 0.05).fit(xtrn, wytrn[0::,j]).predict(xtst)
+
+
+# 2nd layer
+
+tstnew2y = model_stacker.fit(newxtrn, ytrn).predict(newxtst)
+
+#3rd layer
+snew2y_tst = tstnew2y[0::,0:5]
+wnew2y_tst = tstnew2y[0::,5:9]
+knew2y_tst = tstnew2y[0::,9:24]
+Fs = np.zeros(shape=(mtst, ns))
+Fw = np.zeros(shape=(mtst, nw))
+Fk = np.zeros(shape=(mtst, nk))
+for j in range(ns):
+    Fs[0::,j] = sclf[j].predict(snew2y_tst[0::,j])
+for j in range(nw):
+    Fw[0::,j] = wclf[j].predict(wnew2y_tst[0::,j])
+for j in range(nk):
+    Fk[0::,j] = kclf[j].predict(knew2y_tst[0::,j])
+
+
+
+
+
+from sklearn.preprocessing import normalize
+## use 'l1' to normalize record to unit norm
+
+tstpred_S = sklearn.preprocessing.normalize(Fs, norm = 'l1')
+tstpred_W = sklearn.preprocessing.normalize(Fw, norm = 'l1')
+
+
+
+
+##output the csv file
+path_2 = 'C:/Users/qing/Desktop/tweet/test.csv'
+path_3 = 'C:/Users/qing/Desktop/Submission.csv'
+
+with open(path_2, 'rb') as tstinfile:
+    reader = csv.reader(tstinfile, delimiter = ',')
+    header = reader.next()
+    idx_tst = []
+    for line in reader:
+        id, tweet, state, location = line
+        idx_tst.append(id)
+    
+
+with open(path_3, 'wb') as outfile:
+    writer = csv.writer(outfile, delimiter = ',')
+    writer.writerrow(['id','s1','s2','s3','s4','s5','w1','w2',
+                      'w3','w4','k1','k2','k3','k4','k5','k6',
+                      'k7','k8','k9','k10','k11','k12','k13','k14','k15'])
+    writer.writerrows(zip(idx_tst,np.hstck(FS, FW, FK)))
+
+
