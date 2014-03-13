@@ -1,0 +1,82 @@
+import numpy as np
+import csv
+import time
+import re
+import pylab as pl
+from nltk import FreqDist
+import math
+from math import sqrt
+import sklearn
+from sklearn.linear_model import Ridge
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.cross_validation import train_test_split
+
+ 
+
+
+
+
+## read values
+def readtarget(path, cols):
+    ## read a csv, return designated columns as array of data
+    
+    infile = open(path, "rb")
+    reader = csv.reader(infile, delimiter = ",")
+    header = reader.next()
+    y = []
+    for row in reader:
+        y.append([row[col] for col in cols])
+    return y
+
+
+
+
+
+
+
+## process texting
+        
+from nltk.corpus import stopwords
+stopwords = stopwords.words("english") + ['rt', 'link']
+
+def processtext(text):
+        ## process a string of texting
+        text = text.lower()
+        text_tokens = text.split()
+        text_tokens = [t for t in text_tokens if t not in stopwords]
+     
+        
+        mood_signs = {':)': 'happy', ':/': 'unhappy', ':(':'unhappy'}
+        a = text_tokens
+        for i in range(len(text_tokens)):
+             if text_tokens[i] in mood_signs.keys():
+                  a[i] = mood_signs[text_tokens[i]]
+      
+
+        b = []
+        for i in range(len(a)):
+            b.extend(re.findall(r'[a-zA-Z]+',a[i]))
+
+        return " ".join(b)
+
+ 
+def mseFunc(y, pred):
+    y = np.asarray(y)
+    pred = np.asarray(pred)
+    score = math.sqrt(np.sum(np.power((y - pred), 2))/y.shape[0]) 
+    return score
+
+
+alphas = np.round(np.linspace(0,10,num = 10),2)
+print alphas
+
+def tuneRidge(xtrn, ytrn, xcv, ycv):
+    # ytrn is one column, ycv is one column
+    temp = []
+    for c in alphas:
+        clf_pred = Ridge(alpha = c).fit(xtrn, ytrn).predict(x_cv)
+        temp.append(mseFunc(ycv, clf_pred))
+    bestalpha = alphas[temp.index(min(temp))]
+    return bestalpha
+
