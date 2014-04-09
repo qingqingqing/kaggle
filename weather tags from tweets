@@ -1,0 +1,213 @@
+import numpy as np
+import csv
+import re
+import math
+from math import sqrt
+import sklearn
+from sklearn import linear_model
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.cross_validation import train_test_split
+
+ 
+
+
+
+
+## read values
+def readtarget(path):
+    ## read a csv, return designated columns as array of data
+    
+    infile = open(path, 'rb')
+    reader = csv.reader(infile)
+    header = reader.next()
+    y = []
+    for row in reader:
+        y.append(row)
+    y = np.asarray(y)
+    return y
+
+ 
+
+ 
+## process texting
+        
+
+stopwords = ['rt', 'link', 'google', 'facebook']
+
+def processtext(text):
+        ## process a string of texting
+        text = text.lower()
+        text_tokens = text.split()
+        text_tokens = [t for t in text_tokens if t not in stopwords]
+     
+        
+        mood_signs = {':)': 'happy', ':/': 'unhappy', ':(':'unhappy', 'hotttt':'hot'}
+        a = text_tokens
+        for i in range(len(text_tokens)):
+             if text_tokens[i] in mood_signs.keys():
+                  a[i] = mood_signs[text_tokens[i]]
+      
+
+        b = []
+        for i in range(len(a)):
+            b.extend(re.findall(r'[a-zA-Z]+',a[i]))
+
+        return " ".join(b)
+
+
+
+def splitTrn(x, y, perc, random_state=0):
+
+    xtrn, x_cv, ytrn, ycv = sklearn.cross_validation.train_test_split(x, y, test_size = perc)
+    return xtrn, x_cv, ytrn, ycv
+
+
+
+def _num_samples(x):
+    """Return number of samples in array-like x."""
+    if not hasattr(x, '__len__') and not hasattr(x, 'shape'):
+        raise TypeError("Expected sequence or array-like, got %r" % x)
+    return x.shape[0] if hasattr(x, 'shape') else len(x)
+
+
+ 
+def mseFunc(a, b):
+    a = np.asarray(a, dtype = float)
+    b = np.asarray(b, dtype = float)
+    score = math.sqrt(np.sum((a - b)**2)/a.shape[0]) 
+    return score
+
+
+alphas = np.round(np.linspace(0,10,num = 20),2)
+ 
+
+def tuneRidge(xtrn, ytrn, xcv, ycv):
+    # ytrn is one column, ycv is one column
+    temp = []
+    for c in alphas:
+        clf_pred = linear_model.Ridge(alpha = c).fit(xtrn, ytrn).predict(xcv)
+        temp.append(mseFunc(ycv, clf_pred))
+    bestalpha = alphas[temp.index(min(temp))]
+    return bestalpha
+
+
+
+
+
+############
+## import x and feature extraction
+Path = "C:/Users/inception/Desktop/train.csv"
+data = readtarget(Path)
+x = data[0::, 1].reshape((data.shape[0],1))
+x = np.asarray([processtext(x[i,0]) for i in range(x.shape[0])]) 
+
+Y = data[0::, 4:28].reshape((data.shape[0],24))
+xtrn, xcv, ytrn, ycv = sklearn.cross_validation.train_test_split(x, Y, test_size = 0.3)
+
+ 
+
+# input of TfidfVectorizer() is sequence of string, not array
+ 
+vectorizer = TfidfVectorizer(sublinear_tf=True, ngram_range = (1,2), max_features = 15000)
+xtrn = vectorizer.fit_transform(xtrn)
+xcv = vectorizer.transform(xcv)
+
+bestalphas = []
+_1clf = []
+for j in range(24):
+    bestalphas.append(tuneRidge(xtrn, ytrn[0::,j], xcv, ycv[0::,j]))
+    _1clf.append(linear_model.Ridge(alpha = bestalphas[j]).fit(xtrn, ytrn[0::,j]))
+
+
+
+
+'''# layer 2, cv + output of 1st layer as input of 2nd layer.
+# clf_1.fit(trn).predict(cv) = output_1 = input_2----train RF on cv----RF.fit(input_2, ycv).predict(xtrn) as input_3
+# RF classifier: input are array w/ 24 col; output are array w/ 24 col
+newxcv = np.empty(shape=(ycv.shape[0], 24))
+for j in range(24):
+    newxcv[0::,j] = linear_model.Ridge(alpha = bestalphas[j]).fit(xtrn, ytrn[0::,j]).predict(xcv)
+
+model_stacker = RandomForestClassifier(n_estimators = 10)
+new2y = model_stacker.fit(newxcv, ycv).predict_proba(xtrn)
+ 
+
+# layer 3
+best2alphas = []
+_2clf = []
+for j in range(24):
+    best2alphas.append(tuneRidge(xtrn, new2y[0::,j], xcv, ycv[0::,j]))
+    _2clf.append(linear_model.Ridge(alpha = best2alphas[j]).fit(xtrn, new2y[0::,j]))
+'''
+
+########################
+#prediction
+
+path_2 = 'C:/Users/inception/Desktop/test.csv'
+path_3 = 'C:/Users/inception/Desktop/Submission.csv'
+datatst = readtarget(path_2)
+xxtst = datatst[0::,1]
+xtst = vectorizer.transform(xxtst)
+
+
+
+
+ 
+
+# stacking
+tst_pred = np.empty(shape = (datatst.shape[0], 24))
+for j in range(24):
+    tst_pred[0::,j] =_1clf[j].predict(xtst)
+
+##clip to [0,1]
+tst_pred = np.clip(tst_pred, 0,1)    
+
+## normalize S and W, with L1
+tst_pred[0::,0:5] = sklearn.preprocessing.normalize(tst_pred[0::,0:5], norm='l1', axis=1, copy=True)
+tst_pred[0::,5:9] = sklearn.preprocessing.normalize(tst_pred[0::,5:9], norm='l1', axis=1, copy=True)
+
+
+## output data
+id = datatst[0::,0]
+with open(path_3, 'wb') as outfile:
+    writer = csv.writer(outfile, delimiter = ',')
+    writer.writerow(['id','s1','s2','s3','s4','s5','w1','w2',
+                      'w3','w4','k1','k2','k3','k4','k5','k6',
+                      'k7','k8','k9','k10','k11','k12','k13','k14','k15'])
+    writer.writerows(np.hstack((id,tst_pred)))
+
+
+## the problem is i find there are some negative the prediction 
+
+'''
+tst_new = model_stacker.fit(newxtrn, ytrn).predict_proba(tst_pred)
+
+F_pred = np.empty(shape = (datatst.shape[0], 24))
+for j in range(24):
+    F_pred[0::,j] = _2clf[j].predict(tst_new)
+ 
+
+ 
+##output the csv file
+ 
+id = datatst[0::,0]
+with open(path_3, 'wb') as outfile:
+    writer = csv.writer(outfile, delimiter = ',')
+    writer.writerrow(['id','s1','s2','s3','s4','s5','w1','w2',
+                      'w3','w4','k1','k2','k3','k4','k5','k6',
+                      'k7','k8','k9','k10','k11','k12','k13','k14','k15'])
+    writer.writerrows(np.hstack(id,F_pred))
+
+'''
+
+
+
+
+
+
+
+
+
+
+ 
